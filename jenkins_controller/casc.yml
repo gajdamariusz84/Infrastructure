@@ -55,7 +55,6 @@ credentials:
                 -----END OPENSSH PRIVATE KEY-----
 
 jenkins:
-
   securityRealm:
     local:
       users:
@@ -66,6 +65,18 @@ jenkins:
       permissions:
       - "Overall/Administer:panda"
   numExecutors: 0
+  nodes:
+  - permanent:
+      labelString: "agent"
+      launcher:
+        ssh:
+          credentialsId: "jenkins_agent"
+          host: "192.168.44.44"
+          port: 2222
+          sshHostKeyVerificationStrategy: "nonVerifyingKeyVerificationStrategy"
+      name: "agent"
+      remoteFS: "/home/jenkins/agent"
+      retentionStrategy: "always"
   
 unclassified:
   sonarGlobalConfiguration:
@@ -76,6 +87,8 @@ unclassified:
       triggers:
         skipScmCause: false
         skipUpstreamCause: false
+  location:
+    url: "http://192.168.44.44:8880/"
 
 tool:
   sonarRunnerInstallation:
