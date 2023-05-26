@@ -1,0 +1,75 @@
+version: '2.4'
+
+services:
+  artifactory:
+    image: docker.bintray.io/jfrog/artifactory-jcr:latest
+    container_name: artifactory
+    ports:
+      - 8081:8081
+      - 8082:8082
+    volumes:
+      - ./artifactory/:/artifactory_extra_conf/
+    restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/artifactory/api/system/ping"]
+      interval: 1m30s
+      timeout: 10s
+      retries: 30
+      start_period: 40s
+
+  jenkins:
+    build: jenkins_controller
+    container_name: jenkins
+    depends_on: 
+      artifactory:
+        condition: service_healthy
+    ports:
+      - 8880:8080
+      - 50000:50000
+    volumes:
+      - ./jenkins_controller/casc.yml:/usr/share/jenkins/ref/casc.yml
+    restart: always
+
+  jenkins_agent:
+    build: jenkins_agent
+    container_name: jenkins_agent
+    depends_on: 
+      - jenkins
+    ports:
+      - "2222:22"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: always
+    environment:
+      - JENKINS_AGENT_SSH_PUBKEY=ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDz2NBEaeSpE+ItXIxSAV4QVXXSOG7U9+1fu0En3X+R5L7JFC2yJ6ztVuhtldPKOwSLIsWs/0nDi6MooXyDDA8SKxCiaKbKSKNxTpEobTgQaRwTr+YsD1NwJ6QKtdcaWDDynISpcazv510Zf62sgyR6Z1D647Bzu/SKeq0RW9J+VItEzXNuM4xTdz3arLjq1N0DkNrkRxcff8mNRUeMuSRzu1Ua7OZ2EgsAYV3JBOzAK1h52t6ybNuOVpXfKzgkz7IPv2e9mwfsWvlTBkDUyiWRTY5eAWHxUFXCNdOFnbhQUvL9DGXHObTYziDEUK61UOFEUNfTZtoA686bOOjIEhoHsKxo8Hc+iSqc/pvGqFs2NA2gablAwVYpZOogHktErG4ZG7KabyUcS7WJNqgkYrQhXzVw94kN0XbCSkP6EcDxTf1mVpe9yXAsA4LRXCXpbECf2SjfZ1hYQpCozGTAZu6uSceYpoHEmxWAbBhcdYO4NETjKA3K1kZvk+qI+U7TLCE= 
+
+  sonarqube:
+    image: sonarqube:9.2.4-community
+    container_name: sonarqube
+    depends_on: 
+      - jenkins
+    ports:
+      - 9000:9000
+    restart: always
+
+  selenium:
+    image: selenium/hub
+    container_name: selenium_hub
+    depends_on: 
+      - jenkins
+    ports:
+      - 4442:4442
+      - 4443:4443
+      - 4444:4444
+    restart: always
+
+  firefox:
+    image: selenium/node-firefox
+    container_name: firefox
+    depends_on: 
+      - selenium
+    environment:
+      - SE_EVENT_BUS_HOST=selenium_hub
+      - SE_EVENT_BUS_PUBLISH_PORT=4442
+      - SE_EVENT_BUS_SUBSCRIBE_PORT=4443
+    restart: always
